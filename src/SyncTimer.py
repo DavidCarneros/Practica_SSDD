@@ -2,12 +2,13 @@
 # -*- coding: utf-8 -*-
 ''' Modulo SyncTimer '''
 import sys
+import time
 import Ice
 import IceStorm
-#pylint ignore = E0401
-#pyliny ignore = C0413
+#pylint: disable = E0401
+#pyliny: disable = C0413
 Ice.loadSlice("Downloader.ice")
-import Downloader
+import DownloaderSlice
 
 KEY = 'IceStorm.TopicManager.Proxy'
 TOPIC_NAME = 'SyncTopic'
@@ -36,11 +37,14 @@ class SyncTime(Ice.Application):
         except:
             topic = topic_mgr.create(TOPIC_NAME)
 
-        publisher = Downloader.SyncTopicPrx.uncheckedCast(topic.getPublisher())
+        publisher = DownloaderSlice.SyncTopicPrx.uncheckedCast(topic.getPublisher())
 
+        counter = 0
         while True:
-            print("Sendig requestSync()")
+            counter += 1
+            print("Sendig requestSync() numero: {}".format(counter))
             publisher.requestSync()
+            time.sleep(7.5)
 
         return 0
 

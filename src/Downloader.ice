@@ -1,4 +1,5 @@
-module Downloader {
+module DownloaderSlice {
+
 
   sequence<string> SongsList;
   interface Downloader {
@@ -12,8 +13,10 @@ module Downloader {
       string clipName;
       string endpointIP;
       Status status;
-  };
+    };
+
   interface ProgressTopic {
+
     void notify(ClipData clipData);
   };
 
