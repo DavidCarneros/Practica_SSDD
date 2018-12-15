@@ -20,6 +20,8 @@ class Client(Ice.Application):
 
         print(downloader_server.download(argv[2]))
 
+        print(downloader_server.getSongsList())
+
         return 0
 
 

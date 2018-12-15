@@ -28,6 +28,9 @@ run-monitorSync: icestorm.config synctimer.config
 run-server: icestorm.config server.config
 	python3 Server.py --Ice.Config=server.config
 
+run-server1: icestorm.config server.config
+	python3 Server_1adapter.py --Ice.Config=server.config
+
 run-publisher1:  icestorm.config server1.config
 	python3 Server.py --Ice.Config=server1.config
 

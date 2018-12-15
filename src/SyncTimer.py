@@ -44,7 +44,7 @@ class SyncTime(Ice.Application):
             counter += 1
             print("Sendig requestSync() numero: {}".format(counter))
             publisher.requestSync()
-            time.sleep(7.5)
+            time.sleep(15.0)
 
         return 0
 

@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 ''' Modulo Server '''
 import sys
-import time
 import Ice
 import IceStorm
 #pylint: disable = E0401
@@ -10,27 +9,54 @@ import IceStorm
 Ice.loadSlice("Downloader.ice")
 import DownloaderSlice
 
+
 class SyncTime(DownloaderSlice.SyncTopic):
-    def __init__ (self,publisher):
+    ''' Servant del SyncTime '''
+    def __init__ (self, publisher):
+        ''' Constructor '''
         self.publisher = publisher
         self.song_list = set([])
 
-    def notify(self,song_list,current=None):
+    def notify(self, song_list, current=None):
+        '''
+         Modulo encargado de recibir el conjunto de canciones
+        y juntarlo con el suyo, para asi actualizar la lista con
+        todas las canciones de los servidores
+         '''
         conjunto_canciones = set(song_list)
         self.song_list = self.song_list.union(conjunto_canciones)
 
-
     def requestSync(self, current=None):
-        print("requestSync")
+        '''
+        Modulo encargado de hacer el notify para enviar su lista
+        de canciones y asi poder actualizarlas
+        '''
+        print("Llegada peticion de sincronizacion")
         self.notify(list(self.song_list))
         sys.stdout.flush()
 
 class DownloaderI(DownloaderSlice.Downloader):
+    ''' Servant del Downloader'''
+    def __init__(self, sync_time):
+        ''' Constructor '''
+        self.sync_time = sync_time
 
-    def download_async(self,cb, url,current=None):
-        print(url)
-        cb.ice_response("recibido")
+    def download_async(self, call_back, url, current=None):
+        '''
+        Modulo asincrono encargado de recibir la url de la
+        cancion que se tiene que descargar
+        '''
+        print("Recibida url: {}".format(url))
+        call_back.ice_response("Recibida peticion de descarga")
         sys.stdout.flush()
+
+    def getSongsList(self, current=None):
+        '''
+        Modulo encargado de mandar la lista de las canciones
+        que tiene el servidor
+        '''
+        print("Envio de la lista de canciones al cliente")
+        return list(self.SyncTime.song_list)
 
 class Server(Ice.Application):
 
@@ -47,7 +73,7 @@ class Server(Ice.Application):
     def run(self, argv):
         topic_mgr = self.get_topic_manager()
         if not topic_mgr:
-            print (': invalid proxy')
+            print(': invalid proxy')
             return 2
 
         topic_name = "SyncTopic"
@@ -58,30 +84,29 @@ class Server(Ice.Application):
             topic = topic_mgr.create(topic_name)
 
         broker = self.communicator()
-        publisherSyncTime = DownloaderSlice.SyncTopicPrx.uncheckedCast(topic.getPublisher())
+        publisher_synctime = DownloaderSlice.SyncTopicPrx.uncheckedCast(topic.getPublisher())
         ic = self.communicator()
-        servantSyncTime = SyncTime(publisherSyncTime)
+        servant_synctime = SyncTime(publisher_synctime)
         adapter = ic.createObjectAdapter("ServerAdapter")
-        subscriberSyncTime = adapter.addWithUUID(servantSyncTime)
-        topic.subscribeAndGetPublisher(qos, subscriberSyncTime)
+        subscriber_synctime = adapter.addWithUUID(servant_synctime)
+        topic.subscribeAndGetPublisher(qos, subscriber_synctime)
 
-        print ('Waiting events...', subscriberSyncTime)
+        print('Waiting events...', subscriber_synctime)
 
         #### Parte del server descargas
 
-        servantDownload = DownloaderI()
-        proxy = adapter.add(servantDownload, broker.stringToIdentity("server1"))
+        servant_download = DownloaderI(servant_synctime)
+        proxy = adapter.add(servant_download, broker.stringToIdentity("server1"))
         print(proxy)
         adapter.activate()
 
         self.shutdownOnInterrupt()
         ic.waitForShutdown()
 
-        topic.unsubscribe(subscriberSyncTime)
+        topic.unsubscribe(subscriber_synctime)
 
         return 0
 
 
-
-
-sys.exit(Server().main(sys.argv))
+if __name__ == '__main__':
+    sys.exit(Server().main(sys.argv))
