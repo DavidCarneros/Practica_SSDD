@@ -8,6 +8,7 @@ module DownloaderSlice {
   };
 
   enum Status {Pending, InProgress, Done, Error};
+
     struct ClipData {
       string URL;
       string clipName;
@@ -16,7 +17,6 @@ module DownloaderSlice {
     };
 
   interface ProgressTopic {
-
     void notify(ClipData clipData);
   };
 

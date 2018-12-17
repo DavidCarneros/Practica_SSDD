@@ -1,34 +1,97 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
-"usage: {} <server> <value>"
 
 import sys
-
+import IceStorm
 import Ice
-Ice.loadSlice('Downloader.ice')
+Ice.loadSlice('Downloader0.ice')
 import DownloaderSlice
+import time
+import threading
+
+class ProgressTopicI(DownloaderSlice.ProgressTopic):
+    def timeStamp(self):
+        return time.ctime(time.time())
+
+    def notify(self, clipData, current=None):
+        print("[{0}]: descarga: {1}".format(self.timeStamp(),clipData))
+
+class Subscriber(Ice.Application):
+    def descarga(self, argv, broker):
+        print(argv[1])
+        ##broker = self.communicator()
+        proxy = broker.stringToProxy(argv[1])
+        downloader = DownloaderSlice.DownloaderPrx.checkedCast(proxy)
+
+        if not downloader:
+            raise RuntimeError('Invalid proxy')
 
 
-class Client(Ice.Application):
+        print(downloader.download("https://www.youtube.com/watch?v=lAg6IZc_uuU"))
 
-    def run(self, argv):
-        base = self.communicator().stringToProxy(argv[1])
-        downloader_server =  DownloaderSlice.DownloaderPrx.checkedCast(base)
+        return 0
 
-        if not downloader_server:
-            raise RuntimeError("Invalid proxy")
+    def get_topic_manager(self):
+        key = 'IceStorm.TopicManager.Proxy'
+        proxy = self.communicator().propertyToProxy(key)
+        if proxy is None:
+            print("property", key, "not set")
+            return None
 
-        print(downloader_server.download(argv[2]))
+        print("Using IceStorm in: '%s'" % key)
+        return IceStorm.TopicManagerPrx.checkedCast(proxy)
 
-        print(downloader_server.getSongsList())
+    def create_topic(self, topic_mgr, topic_name):
+        if not topic_mgr:
+            print(': invalid proxy')
+            return 2
+        try:
+            topic = topic_mgr.retrieve(topic_name)
+            return topic
+        except IceStorm.NoSuchTopic:
+            topic = topic_mgr.create(topic_name)
+            return topic
+
+    def run(self,argv):
+        broker = self.communicator()
+        topic_mgr = self.get_topic_manager()
+        progress_topic = self.create_topic(topic_mgr,"ProgressTopic")
+
+        servant = ProgressTopicI()
+        adapter = broker.createObjectAdapter("ProgressTopicAdapter")
+        subscriber = adapter.addWithUUID(servant)
+        qos = {}
+
+        client = Client()
+        progress_topic.subscribeAndGetPublisher(qos,subscriber)
+        print("Waiting events... {}".format(subscriber))
+
+        download = threading.Thread(target=client.run, args=(sys.argv,broker,))
+
+        download.start()
+
+        adapter.activate()
+        self.shutdownOnInterrupt()
+        broker.waitForShutdown()
+        progress_topic.unsubscribe(subscriber)
+
+class Client():
+    def run(self, argv, broker):
+        print(argv[1])
+        ##broker = self.communicator()
+        proxy = broker.stringToProxy(argv[1])
+        downloader = DownloaderSlice.DownloaderPrx.checkedCast(proxy)
+
+        if not downloader:
+            raise RuntimeError('Invalid proxy')
+
+
+        print(downloader.download("https://www.youtube.com/watch?v=lAg6IZc_uuU"))
 
         return 0
 
 
-if len(sys.argv) != 3:
-    print(__doc__.format(__file__))
-    sys.exit(1)
+if __name__ == '__main__':
+    subscriber = Subscriber()
 
-
-app = Client()
-sys.exit(app.main(sys.argv))
+    subscriber.main(sys.argv)

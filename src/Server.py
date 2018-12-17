@@ -3,11 +3,14 @@
 ''' Modulo Server '''
 import sys
 import Ice
+import time
 import IceStorm
 #pylint: disable = E0401
 #pyliny: disable = C0413
-Ice.loadSlice("Downloader.ice")
+Ice.loadSlice("Downloader0.ice")
 import DownloaderSlice
+import work_queue
+
 
 
 class SyncTime(DownloaderSlice.SyncTopic):
@@ -16,6 +19,9 @@ class SyncTime(DownloaderSlice.SyncTopic):
         ''' Constructor '''
         self.publisher = publisher
         self.song_list = set([])
+
+    def timeStamp(self):
+        return time.ctime(time.time())
 
     def notify(self, song_list, current=None):
         '''
@@ -31,15 +37,24 @@ class SyncTime(DownloaderSlice.SyncTopic):
         Modulo encargado de hacer el notify para enviar su lista
         de canciones y asi poder actualizarlas
         '''
-        print("Llegada peticion de sincronizacion")
+        print("[{}] Llegada peticion de sincronizacion".format(self.timeStamp()))
         self.notify(list(self.song_list))
         sys.stdout.flush()
-
+'''
+class ProgressTopic(DownloaderSlice.ProgressTopic):
+    def __init__(self,publisher):
+        return 0
+'''
 class DownloaderI(DownloaderSlice.Downloader):
     ''' Servant del Downloader'''
-    def __init__(self, sync_time):
+    def __init__(self, sync_time, publisher_progresstopic):
         ''' Constructor '''
         self.sync_time = sync_time
+        self.publisher_progress = publisher_progresstopic
+        self.work_queue = work_queue.WorkQueue(self.publisher_progress)
+        self.work_queue.start()
+
+
 
     def download_async(self, call_back, url, current=None):
         '''
@@ -47,8 +62,9 @@ class DownloaderI(DownloaderSlice.Downloader):
         cancion que se tiene que descargar
         '''
         print("Recibida url: {}".format(url))
-        call_back.ice_response("Recibida peticion de descarga")
-        sys.stdout.flush()
+        #call_back.ice_response("Recibida peticion de descarga")
+        self.work_queue.add(call_back, url)
+
 
     def getSongsList(self, current=None):
         '''
@@ -56,7 +72,7 @@ class DownloaderI(DownloaderSlice.Downloader):
         que tiene el servidor
         '''
         print("Envio de la lista de canciones al cliente")
-        return list(self.SyncTime.song_list)
+        return list(self.sync_time.song_list)
 
 class Server(Ice.Application):
 
@@ -70,40 +86,59 @@ class Server(Ice.Application):
         print("Using IceStorm in: '%s'" % key)
         return IceStorm.TopicManagerPrx.checkedCast(proxy)
 
-    def run(self, argv):
-        topic_mgr = self.get_topic_manager()
+    def create_topic(self, topic_mgr, topic_name):
         if not topic_mgr:
             print(': invalid proxy')
             return 2
 
-        topic_name = "SyncTopic"
-        qos = {}
         try:
             topic = topic_mgr.retrieve(topic_name)
+            return topic
         except IceStorm.NoSuchTopic:
             topic = topic_mgr.create(topic_name)
+            return topic
 
+    def run(self, argv):
+        '''
+        RUN
+        '''
+        topic_mgr = self.get_topic_manager()
+        qos = {}
         broker = self.communicator()
-        publisher_synctime = DownloaderSlice.SyncTopicPrx.uncheckedCast(topic.getPublisher())
-        ic = self.communicator()
+        properties = broker.getProperties()
+
+        ''' Creacion del publisher y subscriber para el SyncTopic '''
+        sync_topic = self.create_topic(topic_mgr,"SyncTopic")
+        publisher_synctime = DownloaderSlice.SyncTopicPrx.uncheckedCast(sync_topic.getPublisher())
+        identity = Ice.stringToIdentity(properties.getProperty("Identity"))
         servant_synctime = SyncTime(publisher_synctime)
-        adapter = ic.createObjectAdapter("ServerAdapter")
-        subscriber_synctime = adapter.addWithUUID(servant_synctime)
-        topic.subscribeAndGetPublisher(qos, subscriber_synctime)
+        synctime_adapter = broker.createObjectAdapter("SyncAdapter")
+        subscriber_synctime = synctime_adapter.addWithUUID(servant_synctime)
+        sync_topic.subscribeAndGetPublisher(qos, subscriber_synctime)
+        synctime_adapter.activate()
 
         print('Waiting events...', subscriber_synctime)
 
-        #### Parte del server descargas
+        ''' Creacion del publisher para el ProgressTopic '''
 
-        servant_download = DownloaderI(servant_synctime)
-        proxy = adapter.add(servant_download, broker.stringToIdentity("server1"))
-        print(proxy)
-        adapter.activate()
+        ProgressTopic_topic = self.create_topic(topic_mgr,"ProgressTopic")
+        publisher_progresstopic = DownloaderSlice.ProgressTopicPrx.uncheckedCast(ProgressTopic_topic.getPublisher())
+        ProgressTopic_topic.subscribeAndGetPublisher(qos, subscriber_synctime)
+
+
+        ''' Cracion del servant y el proxy para el download '''
+        servant_download = DownloaderI(servant_synctime, publisher_progresstopic)
+        download_adapter = broker.createObjectAdapter("DownloaderAdapter")
+        identity = Ice.stringToIdentity(properties.getProperty("Identity"))
+        proxy = download_adapter.add(servant_download, identity)
+        print("\n {} \n".format(proxy))
+        download_adapter.activate()
+
 
         self.shutdownOnInterrupt()
-        ic.waitForShutdown()
+        broker.waitForShutdown()
 
-        topic.unsubscribe(subscriber_synctime)
+        sync_topic.unsubscribe(subscriber_synctime)
 
         return 0
 

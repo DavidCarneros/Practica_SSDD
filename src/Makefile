@@ -5,40 +5,34 @@ clean:
 	$(RM) *~
 	$(RM) -r db
 
-registry: node1.config
+registry: ./config/node1.config
 	@if ! [ -d /tmp/db/registry ]; then mkdir -p /tmp/db/registry; fi
-	icegridregistry --Ice.Config=node1.config
+	icegridregistry --Ice.Config=./config/node1.config
 
-start:  icebox.config icestorm.config
-	@if ! [ -d db ]; then mkdir db; fi
-	icebox --Ice.Config=icebox.config
+start:  ./config/icebox.config ./config/icestorm.config
+	@if ! [ -d ./config/db ]; then mkdir ./config/db; fi
+	icebox --Ice.Config=./config/icebox.config
 	sleep 3
-	icestormadmin --Ice.Config=icestorm.config -e "create EventsTopic"
+	icestormadmin --Ice.Config=./config/icestorm.config -e "create EventsTopic"
 
-stop: icestorm.config
-	icestormadmin --Ice.Config=icestorm.config -e "destroy EventsTopic"
+stop: ./config/icestorm.config
+	icestormadmin --Ice.Config=./config/icestorm.config -e "destroy EventsTopic"
 	killall icebox
 
-run-synctimer: icestorm.config synctimer.config
-	python3 SyncTimer.py --Ice.Config=synctimer.config
+run-synctimer: ./config/icestorm.config ./config/synctimer.config
+	python3 SyncTimer.py --Ice.Config=./config/synctimer.config
 
-run-monitorSync: icestorm.config synctimer.config
-	python3 monitorSyncTopic.py --Ice.Config=subscriber.config
+run-monitor: ./config/icestorm.config ./config/synctimer.config
+	python3 monitor.py --Ice.Config=./config/subscriber.config
 
-run-server: icestorm.config server.config
-	python3 Server.py --Ice.Config=server.config
+run-server: ./config/icestorm.config ./config/server.config
+	python3 Server.py --Ice.Config=./config/server1.config
 
-run-server1: icestorm.config server.config
-	python3 Server_1adapter.py --Ice.Config=server.config
+clientSubs: ./config/client.config
+	python3 Client_Subs.py "DownloaderServer1 -t -e 1.1 @ DownloaderAdapter1" --Ice.Config=./config/client.config
 
-run-publisher1:  icestorm.config server1.config
-	python3 Server.py --Ice.Config=server1.config
+clientDesc: ./config/client.config
+	python3 Client_desc.py "DownloaderServer1 -t -e 1.1 @ DownloaderAdapter1" --Ice.Config=./config/client.config
 
-run-publisher2: icestorm.config server2.config
-	python3 Server.py --Ice.Config=server2.config
-
-client1: client.config
-	python3 Client.py --Ice.Config=client.config "printer1 -t -e 1.1 @ PrinterAdapter1"
-
-client2: client.config
-	python3 Client.py --Ice.Config=client.config "printer2 -t -e 1.1 @ PrinterAdapter2"
+client: ./config/client.config
+	python3 Client.py "DownloaderServer1 -t -e 1.1 @ DownloaderAdapter1" --Ice.Config=./config/client.config
