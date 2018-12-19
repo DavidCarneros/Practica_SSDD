@@ -53,18 +53,24 @@ class Job(object):
         self.cb = cb
         self.url = url
         self.publisher = publisher
+        #self.publisher.notify((self.url,"none","none","Pending"))
         self.publisher.notify("Pending")
         #self.clipData = ClipData(str(self.url), "none", "none", Status.Pending)
 
     def execute(self):
         #descargar el video de yourube
+        #self.publisher.notify((self.url,"none","none","InProgress"))
         self.publisher.notify("InProgress")
         youtube_dl = youtubedl.YoutubeDL("../dl")
         try:
-            youtube_dl.download(self.url)
+            video = youtube_dl.download(self.url)
+            #self.publisher.notify((self.url,"none","none","Done"))
             self.publisher.notify("Done")
+            #print(video)
+            #self.cb.ice_response(video)
             self.cb.ice_response("Vídeo descargado: {0}".format(self.url))
         except:
+            #self.publisher.notify((self.url,"none","none","Error"))
             self.publisher.notify("Error")
             self.cb.ice_response("Error al descargar: {0}".format(self.url))
 

@@ -17,6 +17,7 @@ class ProgressTopicI(DownloaderSlice.ProgressTopic):
         print("[{0}]: descarga: {1}".format(self.timeStamp(),clipData))
 
 class Subscriber(Ice.Application):
+    '''
     def descarga(self, argv, broker):
         print(argv[1])
         ##broker = self.communicator()
@@ -30,7 +31,7 @@ class Subscriber(Ice.Application):
         print(downloader.download("https://www.youtube.com/watch?v=lAg6IZc_uuU"))
 
         return 0
-
+    '''
     def get_topic_manager(self):
         key = 'IceStorm.TopicManager.Proxy'
         proxy = self.communicator().propertyToProxy(key)

@@ -36,3 +36,9 @@ clientDesc: ./config/client.config
 
 client: ./config/client.config
 	python3 Client.py "DownloaderServer1 -t -e 1.1 @ DownloaderAdapter1" --Ice.Config=./config/client.config
+
+clientIU: ./config/client.config
+	python3 ClientInterfaz.py "DownloaderServer1 -t -e 1.1 @ DownloaderAdapter1" --Ice.Config=./config/client.config
+
+ClientInterfaz: ./config/client.config
+	python3 MainWindow.py "DownloaderServer1 -t -e 1.1 @ DownloaderAdapter1" --Ice.Config=./config/client.config
