@@ -5,7 +5,9 @@ import cmd
 import Ice
 Ice.loadSlice('downloader.ice')
 import Downloader
+import IceStorm
 import random
+import pprint
 
 class Shell(cmd.Cmd):
     ''' '''
@@ -21,8 +23,16 @@ class Shell(cmd.Cmd):
 
     def do_connect(self,line):
         '''Connect to proxy'''
+    #    try:
+        self.client.connect(line)
+        self.prompt = 'Downloader(online)> '
+    #    except:
+        #    print("Error in conexion")
+        return
+
+    def do_connect_default(self):
         try:
-            self.client.connect(line)
+            self.client.connect("SchedulerFactory1 -t -e 1.1 @ DownloaderFactory.SchedulerFactoryAdapter")
             self.prompt = 'Downloader(online)> '
         except:
             print("Error in conexion")
@@ -38,6 +48,9 @@ class Shell(cmd.Cmd):
                 print("{}".format(song))
         return
 
+    def do_show_progress(self,line):
+        self.client.show_progress()
+
     def do_add_download(self,line):
         ''' '''
         self.client.add_download(line)
@@ -52,19 +65,65 @@ class Shell(cmd.Cmd):
         '''End program execution '''
         return True
 
+class ProgressEventI(Downloader.ProgressEvent):
+    def __init__(self,client):
+        self.client=client
+
+    def notify(self,clipData,current=None):
+        if clipData.URL in self.client.downloads:
+            self.client.downloads.update({clipData.URL:clipData.status})
 
 class Client(Ice.Application):
     ''' Ice application cliente  '''
 
     factory = None
     schedulers = {}
+    downloads = {}
+
+
+    def get_topic_manager(self):
+        key = 'IceStorm.TopicManager.Proxy'
+        proxy = self.communicator().propertyToProxy(key)
+        print(proxy)
+        if proxy is None:
+            print("property", key, "not set")
+            return None
+
+        print("Using IceStorm in: '%s'" % key)
+        return IceStorm.TopicManagerPrx.checkedCast(proxy)
+
+    def create_topic(self, topic_mgr, topic_name):
+        if not topic_mgr:
+            print(': invalid proxy')
+            return 2
+
+        try:
+            topic = topic_mgr.retrieve(topic_name)
+            return topic
+        except IceStorm.NoSuchTopic:
+            topic = topic_mgr.create(topic_name)
+            return topic
+
 
     def connect(self,proxy):
+
         proxy_factory = self.communicator().stringToProxy(proxy)
         self.factory = Downloader.SchedulerFactoryPrx.checkedCast(proxy_factory)
-        print(self.factory)
         if not self.factory:
             raise RuntimeError('Invalid proxy')
+
+        topic_mgr = self.get_topic_manager()
+        progress_topic = self.create_topic(topic_mgr,"ProgressTopic")
+        adapter = self.communicator().createObjectAdapter("ProgressAdapter")
+        servant_progress = ProgressEventI(self)
+        subscriber_progress = adapter.addWithUUID(servant_progress)
+        qos = {}
+        progress_topic.subscribeAndGetPublisher(qos, subscriber_progress)
+        adapter.activate()
+
+    def show_progress(self):
+        pprint.pprint(self.downloads)
+
 
     def create_schedule(self,name):
         if name in self.schedulers:
@@ -85,7 +144,8 @@ class Client(Ice.Application):
             print("No schedulers create")
         else:
             key = random.choice(list(self.schedulers))
-            self.schedulers[key].addDownloadTask(line)
+            self.downloads[line]=None
+            self.schedulers[key].begin_addDownloadTask(line)
 
     def run(self,argv):
         Shell(self).cmdloop()
