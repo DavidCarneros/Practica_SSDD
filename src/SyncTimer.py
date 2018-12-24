@@ -1,4 +1,4 @@
-#!/usr/bin/pyhon3
+#!/usr/bin/python3 -u
 # -*- coding: utf-8 -*-
 ''' Modulo SyncTimer '''
 import sys
@@ -25,6 +25,7 @@ class SyncTimeI(Downloader.SyncEvent):
         y juntarlo con el suyo, para asi actualizar la lista con
         todas las canciones de los servidores
          '''
+        print("Funciona")
         self.song_list = self.song_list.union(set(song_list))
 
     def requestSync(self, current=None):
@@ -42,8 +43,8 @@ class SyncTime(Ice.Application):
     '''
     def run(self, args):
         ''' Metodo run '''
-        borker = self.communicator()
-
+        broker = self.communicator()
+        properties = broker.getProperties()
         topic_mgr_proxy = self.communicator().propertyToProxy(KEY)
         if topic_mgr_proxy is None:
             print("Property {0} not set".format(KEY))
@@ -61,12 +62,13 @@ class SyncTime(Ice.Application):
 
         publisher = Downloader.SyncEventPrx.uncheckedCast(topic.getPublisher())
 
+        time_to_sleep = float(properties.getProperty("TimeToSleep"))
         counter = 0
         while True:
             counter += 1
             print("Sendig requestSync() numero: {}".format(counter))
             publisher.requestSync()
-            time.sleep(15.0)
+            time.sleep(time_to_sleep)
 
         return 0
 
