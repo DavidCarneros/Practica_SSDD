@@ -13,15 +13,33 @@ class SchedulerFactoryI(Downloader.SchedulerFactory):
 
     schedulers = {}
 
+    def __init__(self,publisher_synctime,publisher_progress,sync_topic):
+        self.sync_topic = sync_topic
+        self.publisher_progress = publisher_progress
+        self.publisher_synctime = publisher_synctime
+
     def make(self, name, current=None):
         ''' Create schedulers '''
         if name in self.schedulers:
             raise Downloader.SchedulerAlreadyExists
-
-
-        servant = downloads_scheduler.DownloaderI(name)
+        '''
+        servant = downloads_scheduler0.DownloaderI(name,self.publisher_synctime,None)
+        proxy = current.adapter.addWithUUID(servant)
+        qos = {}
+        self.sync_topic.subscribeAndGetPublisher(qos, proxy)
+        self.schedulers[name]=proxy
+        print("Waitings events...",proxy)
+        '''
+        servant = downloads_scheduler.DownloaderI(name,self.publisher_progress)
         schedure_proxy = current.adapter.addWithUUID(servant)
+
+        servant_synctime = downloads_scheduler.SyncTimeI(self.publisher_synctime,servant)
+        subscriber_synctime = current.adapter.addWithUUID(servant_synctime)
+        qos = {}
+        self.sync_topic.subscribeAndGetPublisher(qos, subscriber_synctime)
         self.schedulers[name]=schedure_proxy
+
+
         return Downloader.DownloadSchedulerPrx.checkedCast(schedure_proxy)
 
     def availableSchedulers(self,current=None):
@@ -33,6 +51,7 @@ class Server(Ice.Application):
     def get_topic_manager(self):
         key = 'IceStorm.TopicManager.Proxy'
         proxy = self.communicator().propertyToProxy(key)
+        print(proxy)
         if proxy is None:
             print("property", key, "not set")
             return None
@@ -56,14 +75,23 @@ class Server(Ice.Application):
 
         broker = self.communicator()
         properties = broker.getProperties()
-        # factory
-        servant_factory = SchedulerFactoryI()
-        adapter = broker.createObjectAdapter("DownloaderFactoryAdapter")
+        topic_mgr = self.get_topic_manager()
+        qos = {}
+        adapter = broker.createObjectAdapter("SchedulerFactoryAdapter")
+        # Creacion del publisher para synctime
+        sync_topic = self.create_topic(topic_mgr,"SyncTopic")
+        publisher_synctime = Downloader.SyncEventPrx.uncheckedCast(sync_topic.getPublisher())
+
+        # Creacion del publisher para progressTopic
+        progress_topic = self.create_topic(topic_mgr,"ProgressTopic")
+        publisher_progress = Downloader.ProgressEventPrx.uncheckedCast(progress_topic.getPublisher())
+
+        servant_factory = SchedulerFactoryI(publisher_synctime,publisher_progress,sync_topic)
+        #servant_factory = SchedulerFactoryI(None,None)
+
     #    proxy_factory = adapter.add(servant_factory, broker.stringToIdentity("SchedulerFactory1"))
         proxy_factory = adapter.add(servant_factory,Ice.stringToIdentity(properties.getProperty("Identity")))
         print(proxy_factory)
-
-        ''' Creacion del publisher y subscriber para el SyncTopic '''
 
 
         sys.stdout.flush()
