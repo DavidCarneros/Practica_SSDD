@@ -97,11 +97,36 @@
             <properties>
                <property name="Ice.StdOut" value="${application.distrib}/server-out.txt"/>
                <property name="Identity" value="SchedulerFactory1"/>
+               <property name="IceStorm.TopicManager.Proxy" value="IceStorm/TopicManager:tcp -p 10000"/>
             </properties>
             <distrib icepatch="${application}.IcePatch2/server"/>
-            <adapter name="DownloaderFactoryAdapter" endpoints="default" id="${server}.DownloaderFactoryAdapter">
+            <adapter name="SchedulerFactoryAdapter" endpoints="default" id="${server}.SchedulerFactoryAdapter">
                <object identity="ScheduleFactory" type="::downloader::SchedulerFactory"/>
             </adapter>
+         </server>
+         <server-instance template="IceStorm" instance-name="IceStorm" topic-manager-endpoints="tcp -p 10000" publish-endpoints="tpc -p 2000" flush-timeout="2000">
+            <properties>
+               <property name="IceStormAdmin.TopicManager.Default" value="IceStorm/TopicManager:tcp -p 10000"/>
+               <property name="Freeze.DbEnv.IceStorm.DbHome" value="db"/>
+            </properties>
+         </server-instance>
+         <server id="MonitorServer" activation="manual" exe="./Monitor.py" pwd="${application.distrib}">
+            <properties>
+               <property name="Ice.StdOut" value="${application.distrib}/log.txt"/>
+               <property name="IceStorm.TopicManager.Proxy" value="IceStorm/TopicManager:tcp -p 10000"/>
+            </properties>
+            <distrib icepatch="${application}.IcePatch2/server"/>
+            <adapter name="MonitorAdapter" endpoints="default" id="${server}.MonitorAdapter"/>
+         </server>
+         <server id="SyncTimerServer" activation="manual" exe="./SyncTimer.py" pwd="${application.distrib}">
+            <properties>
+               <property name="Ice.StdOut" value="${application.distrib}/synctimer-out.txt"/>
+               <property name="IceStorm.TopicManager.Proxy" value="IceStorm/TopicManager:tcp -p 10000"/>
+               <property name="Identity" value="SyncTimer1"/>
+               <property name="TimeToSleep" value="10.0"/>
+            </properties>
+            <distrib icepatch="${application}.IcePatch2/server"/>
+            <adapter name="SyncTimerAdapter" endpoints="default" id="${server}.SyncTimerAdapter"/>
          </server>
       </node>
    </application>
