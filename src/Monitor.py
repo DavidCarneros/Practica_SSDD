@@ -25,9 +25,9 @@ class SyncTopic(Downloader.SyncEvent):
         print("[{}] requestSync()".format(self.timeStamp()))
         sys.stdout.flush()
 
-    def notify(self, songs_list, current=None):
+    def notify(self, songs, current=None):
         print("[{}], notify with songsList={}".format(self.timeStamp(),
-            songs_list))
+            songs))
 
 class Subscriber(Ice.Application):
 
@@ -68,12 +68,13 @@ class Subscriber(Ice.Application):
         print ('Waiting events...', subscriber_synctime)
 
         ''' ProgressTopic '''
+
         progress_topic = self.create_topic(topic_mgr,"ProgressTopic")
         servant_progressTopic = ProgressTopic()
         subscriber_progressTopic = adapter.addWithUUID(servant_progressTopic)
         progress_topic.subscribeAndGetPublisher(qos,subscriber_progressTopic)
         print ('Waiting events...', subscriber_progressTopic)
-
+        
         adapter.activate()
         self.shutdownOnInterrupt()
         broker.waitForShutdown()
