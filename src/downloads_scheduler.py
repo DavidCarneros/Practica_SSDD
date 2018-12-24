@@ -13,12 +13,13 @@ import work_queue
 
 class DownloaderI(Downloader.DownloadScheduler):
     ''' Servant del Downloader'''
-    def __init__(self, name, sync_time=None, publisher_progresstopic=None):
+    def __init__(self, name, publisher_progress=None):
         ''' Constructor '''
         self.name = name
         self.song_list = set([])
+        self.publisher_progress = publisher_progress
         #self.publisher_progress = publisher_progresstopic
-        self.work_queue = work_queue.WorkQueue(self.song_list)
+        self.work_queue = work_queue.WorkQueue(self)
         #self.work_queue = work_queue.WorkQueue(self.publisher_progress)
         self.work_queue.start()
 
@@ -38,25 +39,25 @@ class DownloaderI(Downloader.DownloadScheduler):
         '''
         print("Envio de la lista de canciones al cliente")
         return list(self.song_list)
-    #    return Downloader.SongList("1","2","3")
 
-class SyncTime(Downloader.SyncEvent):
-    def __init__(self,song_list):
-        self.song_list = song_list
+class SyncTimeI(Downloader.SyncEvent):
 
-    def notify(self, song_list, current=None):
+    def __init__(self,publisher,servant):
+        self.publisher = publisher
+        self.servant = servant
+        print("iniciando syncTimeI")
+
+    def notify(self, songs, current=None):
         '''
          Modulo encargado de recibir el conjunto de canciones
         y juntarlo con el suyo, para asi actualizar la lista con
         todas las canciones de los servidores
          '''
-        conjunto_canciones = set(song_list)
-        self.song_list = set(self.song_list).union(conjunto_canciones)
+        self.servant.song_list = self.servant.song_list.union(set(songs))
 
     def requestSync(self, current=None):
         '''
         Modulo encargado de hacer el notify para enviar su lista
         de canciones y asi poder actualizarlas
         '''
-        print("[{}] Llegada peticion de sincronizacion".format(self.timeStamp()))
-        self.notify(list(self.song_list))
+        self.publisher.notify(list(self.servant.song_list))
