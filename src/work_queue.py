@@ -3,7 +3,7 @@
 
 """
 Sistemas Distribuidos
-Nombre: Sergio Gonzalez Velazquez
+Nombre: David Carneros Prado
 DNI:71359610V
 Curso: 2018 / 2019
 """
@@ -16,6 +16,8 @@ Ice.loadSlice('downloader.ice')
 # pylint: disable=E0401
 import Downloader
 import youtubedl
+import os
+
 
 
 class NullLogger:
@@ -43,6 +45,24 @@ DOWNLOADER_OPTS = {
     'logger': NullLogger()
 }
 
+
+def _download_mp3_(url, destination='./'):
+    '''
+    Synchronous download from YouTube
+    '''
+    options = {}
+    task_status = {}
+    def progress_hook(status):
+        task_status.update(status)
+    options.update(DOWNLOADER_OPTS)
+    options['progress_hooks'] = [progress_hook]
+    options['outtmpl'] = os.path.join(destination, '%(title)s.%(ext)s')
+    with youtube_dl.YoutubeDL(options) as ydl:
+        ydl.download([url])
+    filename = task_status['filename']
+    # BUG: filename extension is wrong, it must be mp3
+    filename = filename[:filename.rindex('.') + 1]
+    return filename + options['postprocessors'][0]['preferredcodec']
 
 class WorkQueue(Thread):
     QUIT = 'QUIT'
@@ -97,17 +117,19 @@ class Job(object):
         self.clip_data.status = Downloader.Status.INPROGRESS
         self.servant.publisher_progress.notify(self.clip_data)
 
-        youtube_dl = youtubedl.YoutubeDL("../dl")
+        youtube_dl = youtubedl.YoutubeDL("/tmp/dl")
         try:
             name = youtube_dl.download(self.url)
             self.clip_data.status = Downloader.Status.DONE
             self.servant.publisher_progress.notify(self.clip_data)
             self.servant.song_list.add(name)
             self.callback.ice_response("Vídeo descargado: {0}".format(self.url))
+
         except:
             self.clip_data.status = Downloader.Status.ERROR
             self.servant.publisher_progress.notify(self.clip_data)
             self.callback.ice_response("Error al descargar: {0}".format(self.url))
+
 
     def cancel(self):
         '''Cancel donwload'''

@@ -30,9 +30,9 @@ class Shell(cmd.Cmd):
         #    print("Error in conexion")
         return
 
-    def do_connect_default(self):
+    def do_connect_default(self,line=None):
         try:
-            self.client.connect("SchedulerFactory1 -t -e 1.1 @ DownloaderFactory.SchedulerFactoryAdapter")
+            self.client.connect_default()
             self.prompt = 'Downloader(online)> '
         except:
             print("Error in conexion")
@@ -84,7 +84,6 @@ class Client(Ice.Application):
     def get_topic_manager(self):
         key = 'IceStorm.TopicManager.Proxy'
         proxy = self.communicator().propertyToProxy(key)
-        print(proxy)
         if proxy is None:
             print("property", key, "not set")
             return None
@@ -96,7 +95,6 @@ class Client(Ice.Application):
         if not topic_mgr:
             print(': invalid proxy')
             return 2
-
         try:
             topic = topic_mgr.retrieve(topic_name)
             return topic
@@ -115,11 +113,27 @@ class Client(Ice.Application):
         topic_mgr = self.get_topic_manager()
         progress_topic = self.create_topic(topic_mgr,"ProgressTopic")
         adapter = self.communicator().createObjectAdapter("ProgressAdapter")
+        servanst_progress = ProgressEventI(self)
+        subscriber_progress = adapter.addWithUUID(servant_progress)
+        qos = {}
+        progress_topic.subscribeAndGetPublisher(qos, subscriber_progress)
+        adapter.activate()
+
+    def connect_default(self):
+        proxy = 'SchedulerFactory1 -t -e 1.1 @ DownloaderFactory.SchedulerFactoryAdapter'
+        proxy_factory = self.communicator().stringToProxy(proxy)
+        self.factory = Downloader.SchedulerFactoryPrx.checkedCast(proxy_factory)
+        if not self.factory:
+            raise RuntimeError('Invalid proxy')
+        topic_mgr = self.get_topic_manager()
+        progress_topic = self.create_topic(topic_mgr,"ProgressTopic")
+        adapter = self.communicator().createObjectAdapter("ProgressAdapter")
         servant_progress = ProgressEventI(self)
         subscriber_progress = adapter.addWithUUID(servant_progress)
         qos = {}
         progress_topic.subscribeAndGetPublisher(qos, subscriber_progress)
         adapter.activate()
+
 
     def show_progress(self):
         pprint.pprint(self.downloads)

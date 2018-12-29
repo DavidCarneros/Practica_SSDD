@@ -18,6 +18,7 @@ Ice.loadSlice("downloader.ice")
 import Downloader
 
 KEY = 'IceStorm.TopicManager.Proxy'
+KEY2 = 'DownloaderApplication.IceStorm/TopicManager'
 TOPIC_NAME = 'SyncTopic'
 
 
@@ -30,11 +31,13 @@ class SyncTime(Ice.Application):
         ''' Metodo run '''
         broker = self.communicator()
         properties = broker.getProperties()
-        topic_mgr_proxy = self.communicator().propertyToProxy(KEY)
+    #    topic_mgr_proxy = self.communicator().propertyToProxy(KEY)
+        topic_mgr_proxy = broker.stringToProxy(KEY2)
         if topic_mgr_proxy is None:
             print("Property {0} not set".format(KEY))
             return 1
         #pylint: disable = E1101
+        print(topic_mgr_proxy)
         topic_mgr = IceStorm.TopicManagerPrx.checkedCast(topic_mgr_proxy)
         if not topic_mgr:
             print(": invalid proxy")
