@@ -5,6 +5,12 @@ node1:
 	mkdir -p /tmp/db/registry
 	icegridnode --Ice.Config=node1.config
 
+node1_v2:
+	rm -r /tmp/db
+	mkdir -p /tmp/db/node1
+	mkdir -p /tmp/db/registry
+	icegridnode --Ice.Config=node1_2.config
+
 copy_binaries:
 	rm -r /tmp/Downloader
 	mkdir -p /tmp/Downloader

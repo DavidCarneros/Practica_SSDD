@@ -45,7 +45,6 @@ class SyncTimeI(Downloader.SyncEvent):
     def __init__(self,publisher,servant):
         self.publisher = publisher
         self.servant = servant
-        print("iniciando syncTimeI")
 
     def notify(self, songs, current=None):
         '''

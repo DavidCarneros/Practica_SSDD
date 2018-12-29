@@ -67,43 +67,46 @@ class WorkQueue(Thread):
 
         self.queue.task_done()
 
-    def add(self, cb, url):
-        self.queue.put(Job(cb, url,self.servant))
+    def add(self, callback, url):
+        ''' Añadir un trabajo a la cola de trabajo '''
+        self.queue.put(Job(callback, url, self.servant))
 
     def destroy(self):
+        ''' Quitar un trabajo de la cola de trabajo '''
         self.queue.put(self.QUIT)
         self.queue.join()
 
 
 class Job(object):
-    def __init__(self, callback, url,servant):
+    '''
+    Objeto trabajo usado en la cola de trabajo.
+    El trabajo sera descargar el video de youtube
+    '''
+    def __init__(self, callback, url, servant):
         self.servant = servant
         self.callback = callback
         self.url = url
 
         #self.publisher.notify((self.url,"none","none","Pending"))
         #self.publisher.notify("Pending")
-        self.clipData = Downloader.ClipData(self.url,Downloader.Status.PENDING)
-        self.servant.publisher_progress.notify(self.clipData)
+        self.clip_data = Downloader.ClipData(self.url, Downloader.Status.PENDING)
+        self.servant.publisher_progress.notify(self.clip_data)
 
     def download(self):
-        #descargar el video de yourube
-        self.clipData.status=Downloader.Status.INPROGRESS
-        self.servant.publisher_progress.notify(self.clipData)
+        ''' Encargado de descargar el video '''
+        self.clip_data.status = Downloader.Status.INPROGRESS
+        self.servant.publisher_progress.notify(self.clip_data)
 
         youtube_dl = youtubedl.YoutubeDL("../dl")
         try:
             name = youtube_dl.download(self.url)
-            self.clipData.status=Downloader.Status.DONE
-            self.servant.publisher_progress.notify(self.clipData)
-
-            #self.cb.ice_response(video)
+            self.clip_data.status = Downloader.Status.DONE
+            self.servant.publisher_progress.notify(self.clip_data)
             self.servant.song_list.add(name)
-            print("añadido name",self.servant.song_list)
             self.callback.ice_response("Vídeo descargado: {0}".format(self.url))
         except:
-            self.clipData.status=Downloader.Status.ERROR
-            self.servant.publisher_progress.notify(self.clipData)
+            self.clip_data.status = Downloader.Status.ERROR
+            self.servant.publisher_progress.notify(self.clip_data)
             self.callback.ice_response("Error al descargar: {0}".format(self.url))
 
     def cancel(self):
