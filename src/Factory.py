@@ -14,7 +14,6 @@ import IceStorm
 import downloads_scheduler
 #pylint: disable = E0401
 #pyliny: disable = C0413
-#pylint: disable = C0413
 #pylint: disable = E1101
 Ice.loadSlice('downloader.ice')
 import Downloader
@@ -22,25 +21,28 @@ import Downloader
 
 class SchedulerFactoryI(Downloader.SchedulerFactory):
     ''' Servant del factory '''
-    schedulers = {}
+
 
     def __init__(self, publisher_synctime, publisher_progress, sync_topic):
         self.sync_topic = sync_topic
         self.publisher_progress = publisher_progress
         self.publisher_synctime = publisher_synctime
+        self.schedulers = {}
+        self.subscriber_synctimers = {}
 
     def make(self, name, current=None):
         ''' Create schedulers '''
         if name in self.schedulers:
             raise Downloader.SchedulerAlreadyExists
         servant = downloads_scheduler.DownloaderI(name, self.publisher_progress)
-        schedure_proxy = current.adapter.addWithUUID(servant)
-
+        schedure_proxy = current.adapter.add(servant, Ice.stringToIdentity(name))
         servant_synctime = downloads_scheduler.SyncTimeI(self.publisher_synctime, servant)
-        subscriber_synctime = current.adapter.addWithUUID(servant_synctime)
+        sync_timer_name = "{}_synctimer".format(name)
+        subscriber_synctime = current.adapter.add(servant_synctime,Ice.stringToIdentity(sync_timer_name))
         qos = {}
         self.sync_topic.subscribeAndGetPublisher(qos, subscriber_synctime)
         self.schedulers[name] = schedure_proxy
+        self.subscriber_synctimers["{}_synctimer".format(name)] = subscriber_synctime
 
         return Downloader.DownloadSchedulerPrx.checkedCast(schedure_proxy)
 
@@ -48,9 +50,21 @@ class SchedulerFactoryI(Downloader.SchedulerFactory):
         ''' Devuelve la cantidad de schedulers '''
         return len(self.schedulers)
 
+    def kill(self, name, current=None):
+        '''
+        Elimina un scheduler creado
+        '''
+        sync_timer_name = "{}_synctimer".format(name)
+        current.adapter.remove(Ice.stringToIdentity(name))
+        self.sync_topic.unsubscribe(self.subscriber_synctimers[sync_timer_name])
+        current.adapter.remove(Ice.stringToIdentity(sync_timer_name))
+        del(self.schedulers[name])
+        del(self.subscriber_synctimers[sync_timer_name])
 
 class Server(Ice.Application):
-    ''' Factoria '''
+    '''
+    Factoria
+    '''
     def get_topic_manager(self):
         ''' obtener el topic manager '''
         key = 'IceStorm.TopicManager.Proxy'
@@ -81,7 +95,7 @@ class Server(Ice.Application):
         broker = self.communicator()
         properties = broker.getProperties()
         topic_mgr = self.get_topic_manager()
-        adapter = broker.createObjectAdapter("SchedulerFactoryAdapter")
+        adapter = broker.createObjectAdapter(properties.getProperty("AdapterName"))
         # Creacion del publisher para synctime
         sync_topic = self.create_topic(topic_mgr, "SyncTopic")
         publisher_synctime = Downloader.SyncEventPrx.uncheckedCast(sync_topic.getPublisher())
@@ -106,5 +120,5 @@ class Server(Ice.Application):
         return 0
 
 if __name__ == '__main__':
-    server = Server()
-    sys.exit(server.main(sys.argv))
+    SERVER = Server()
+    sys.exit(SERVER.main(sys.argv))

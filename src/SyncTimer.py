@@ -4,7 +4,7 @@
 Modulo SyncTimer
 
 David Carneros Prado
-3B
+Sistemas distribuidos
 
 '''
 import sys
@@ -13,12 +13,10 @@ import Ice
 import IceStorm
 #pylint: disable = E0401
 #pyliny: disable = C0413
-#pylint: disable = C0413
 Ice.loadSlice("downloader.ice")
 import Downloader
 
 KEY = 'IceStorm.TopicManager.Proxy'
-KEY2 = 'DownloaderApplication.IceStorm/TopicManager'
 TOPIC_NAME = 'SyncTopic'
 
 
@@ -31,8 +29,7 @@ class SyncTime(Ice.Application):
         ''' Metodo run '''
         broker = self.communicator()
         properties = broker.getProperties()
-    #    topic_mgr_proxy = self.communicator().propertyToProxy(KEY)
-        topic_mgr_proxy = broker.stringToProxy(KEY2)
+        topic_mgr_proxy = self.communicator().propertyToProxy(KEY)
         if topic_mgr_proxy is None:
             print("Property {0} not set".format(KEY))
             return 1
@@ -52,6 +49,7 @@ class SyncTime(Ice.Application):
 
         time_to_sleep = float(properties.getProperty("TimeToSleep"))
         counter = 0
+
         while True:
             counter += 1
             print("Sendig requestSync() numero: {}".format(counter))

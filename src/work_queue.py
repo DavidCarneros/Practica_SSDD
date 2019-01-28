@@ -1,12 +1,11 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-"""
-Sistemas Distribuidos
-Nombre: David Carneros Prado
-DNI:71359610V
-Curso: 2018 / 2019
-"""
+'''
+Modulo work_queue
+David Carneros Prado
+Sistemas distribuidos
+'''
 
 import queue
 from threading import Thread
@@ -16,7 +15,7 @@ Ice.loadSlice('downloader.ice')
 # pylint: disable=E0401
 import Downloader
 import youtubedl
-import os
+
 
 
 
@@ -46,25 +45,12 @@ DOWNLOADER_OPTS = {
 }
 
 
-def _download_mp3_(url, destination='./'):
-    '''
-    Synchronous download from YouTube
-    '''
-    options = {}
-    task_status = {}
-    def progress_hook(status):
-        task_status.update(status)
-    options.update(DOWNLOADER_OPTS)
-    options['progress_hooks'] = [progress_hook]
-    options['outtmpl'] = os.path.join(destination, '%(title)s.%(ext)s')
-    with youtube_dl.YoutubeDL(options) as ydl:
-        ydl.download([url])
-    filename = task_status['filename']
-    # BUG: filename extension is wrong, it must be mp3
-    filename = filename[:filename.rindex('.') + 1]
-    return filename + options['postprocessors'][0]['preferredcodec']
-
 class WorkQueue(Thread):
+    '''
+    Clase workQueue que tendra una cola con los trabajos, es decir
+    la url de la cancion que tiene que descargar.
+    '''
+
     QUIT = 'QUIT'
     CANCEL = 'CANCEL'
 
@@ -87,11 +73,11 @@ class WorkQueue(Thread):
 
         self.queue.task_done()
 
-    def add(self, callback, url):
+    def add(self, url):
         ''' Añadir un trabajo a la cola de trabajo '''
-        self.queue.put(Job(callback, url, self.servant))
+        self.queue.put(Job(url, self.servant))
 
-    def destroy(self):
+    def destroy(self,url):
         ''' Quitar un trabajo de la cola de trabajo '''
         self.queue.put(self.QUIT)
         self.queue.join()
@@ -99,16 +85,12 @@ class WorkQueue(Thread):
 
 class Job(object):
     '''
-    Objeto trabajo usado en la cola de trabajo.
-    El trabajo sera descargar el video de youtube
+    La clase Job sera el trabajo que se usara en la cola de trabajo.
+    Es el encargado ademas de mandar el progreso al progressTopic
     '''
-    def __init__(self, callback, url, servant):
+    def __init__(self, url, servant):
         self.servant = servant
-        self.callback = callback
         self.url = url
-
-        #self.publisher.notify((self.url,"none","none","Pending"))
-        #self.publisher.notify("Pending")
         self.clip_data = Downloader.ClipData(self.url, Downloader.Status.PENDING)
         self.servant.publisher_progress.notify(self.clip_data)
 
@@ -116,21 +98,20 @@ class Job(object):
         ''' Encargado de descargar el video '''
         self.clip_data.status = Downloader.Status.INPROGRESS
         self.servant.publisher_progress.notify(self.clip_data)
-
         youtube_dl = youtubedl.YoutubeDL("/tmp/dl")
         try:
             name = youtube_dl.download(self.url)
             self.clip_data.status = Downloader.Status.DONE
             self.servant.publisher_progress.notify(self.clip_data)
-            self.servant.song_list.add(name)
-            self.callback.ice_response("Vídeo descargado: {0}".format(self.url))
+            self.servant.song_list.add(name[8:])
+        #    self.callback.ice_response("Vídeo descargado: {0}".format(self.url))
 
         except:
             self.clip_data.status = Downloader.Status.ERROR
             self.servant.publisher_progress.notify(self.clip_data)
-            self.callback.ice_response("Error al descargar: {0}".format(self.url))
+        #    self.callback.ice_response("Error al descargar: {0}".format(self.url))
 
 
     def cancel(self):
         '''Cancel donwload'''
-        self.callback.ice_exception(Downloader.SchedulerCancelJob())
+    #    self.callback.ice_exception(Downloader.SchedulerCancelJob())

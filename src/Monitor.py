@@ -7,14 +7,13 @@ distintos topics
 David Carneros Prado
 3B
 '''
+#pylint: disable = E1101
 import sys
 import time
 import Ice
 import IceStorm
 #pylint: disable = E0401
 #pyliny: disable = C0413
-#pylint: disable = C0413
-#pylint: disable = E1101
 Ice.loadSlice('downloader.ice')
 import Downloader
 
@@ -73,7 +72,7 @@ class Monitor(Ice.Application):
         return IceStorm.TopicManagerPrx.checkedCast(proxy)
 
     def create_topic(self, topic_mgr, topic_name):
-        ''' Crear el topic '''
+        ''' Crear el topic si no existe y si existe recuperarlo '''
         if not topic_mgr:
             print(': invalid proxy')
             return 2
