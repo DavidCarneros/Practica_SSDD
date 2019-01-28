@@ -99,7 +99,7 @@
                <property name="IceStormAdmin.TopicManager.Default" value="IceStorm/TopicManager:tcp -p 10000"/>
             </properties>
          </server-instance>
-         <server id="DownloaderFactory" activation="manual" exe="./Factory.py" pwd="${application.distrib}">
+         <server id="DownloaderFactory1" activation="manual" exe="./Factory.py" pwd="${application.distrib}">
             <properties>
                <property name="Ice.StdOut" value="${application.distrib}/server-out.txt"/>
                <property name="Identity" value="SchedulerFactory1"/>
@@ -111,14 +111,6 @@
                <object identity="ScheduleFactory" type="::downloader::SchedulerFactory"/>
             </adapter>
          </server>
-         <server id="MonitorServer" activation="manual" exe="./Monitor.py" pwd="${application.distrib}">
-            <properties>
-               <property name="Ice.StdOut" value="${application.distrib}/log.txt"/>
-               <property name="IceStorm.TopicManager.Proxy" value="DownloaderApplication.IceStorm/TopicManager"/>
-            </properties>
-            <distrib icepatch="${application}.IcePatch2/server"/>
-            <adapter name="MonitorAdapter" endpoints="default" id="${server}.MonitorAdapter"/>
-         </server>
          <server id="SyncTimerServer" activation="manual" exe="./SyncTimer.py" pwd="${application.distrib}">
             <properties>
                <property name="Ice.StdOut" value="${application.distrib}/synctimer-out.txt"/>
@@ -128,6 +120,28 @@
             </properties>
             <distrib icepatch="${application}.IcePatch2/server"/>
             <adapter name="SyncTimerAdapter" endpoints="default" id="${server}.SyncTimerAdapter"/>
+         </server>
+      </node>
+      <node name="node2">
+         <server id="DownloaderFactory2" activation="manual" exe="./Factory.py" pwd="${application.distrib}">
+            <properties>
+               <property name="Ice.StdOut" value="${application.distrib}/server-out.txt"/>
+               <property name="Identity" value="SchedulerFactory2"/>
+               <property name="IceStorm.TopicManager.Proxy" value="DownloaderApplication.IceStorm/TopicManager"/>
+               <property name="AdapterName" value="SchedulerFactoryAdapter2"/>
+            </properties>
+            <distrib icepatch="${application}.IcePatch2/server"/>
+            <adapter name="SchedulerFactoryAdapter2" endpoints="default" id="${server}.SchedulerFactoryAdapter2">
+               <object identity="ScheduleFactory2" type="::downloader::SchedulerFactory"/>
+            </adapter>
+         </server>
+         <server id="MonitorServer" activation="manual" exe="./Monitor.py" pwd="${application.distrib}">
+            <properties>
+               <property name="Ice.StdOut" value="${application.distrib}/log.txt"/>
+               <property name="IceStorm.TopicManager.Proxy" value="DownloaderApplication.IceStorm/TopicManager"/>
+            </properties>
+            <distrib icepatch="${application}.IcePatch2/server"/>
+            <adapter name="MonitorAdapter" endpoints="default" id="${server}.MonitorAdapter"/>
          </server>
       </node>
    </application>
