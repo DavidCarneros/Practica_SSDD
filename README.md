@@ -35,8 +35,10 @@ La implementación de este proyecto permitirá al alumno trabajar los siguientes
 * 2º Copiar los binarios ejecutando el script ./copy_binaries.sh
 
 * 3º Abrir el icegridgui, cargar el xml:
-    ** - un nodo ---> downloader.xml
-    ** - dos nodos --> downloader_2nodos.xml
+
+     - un nodo ---> downloader.xml
+     
+     - dos nodos --> downloader_2nodos.xml
 
 * 4º Llevarlo a registro, distribuir la aplicación y iniciar todos los servidores
 
@@ -47,8 +49,11 @@ La implementación de este proyecto permitirá al alumno trabajar los siguientes
 * 1ª ejecutar el cliente:  ./Client.py --Ice.Config=client.config
 
 * 2ª Conectarnos a la factoria (depende de a la factoria que nos queramos conectar)
-    ** - connect SchedulerFactory1 -t -e 1.1 @ DownloaderFactory1.SchedulerFactoryAdapter
-    ** - connect SchedulerFactory2 -t -e 1.1 @ DownloaderFactory2.SchedulerFactoryAdapter2
+
+     - connect SchedulerFactory1 -t -e 1.1 @ DownloaderFactory1.SchedulerFactoryAdapter
+     
+     - connect SchedulerFactory2 -t -e 1.1 @ DownloaderFactory2.SchedulerFactoryAdapter2
+     
 
 * 3º Creamos el scheduler: create_schedule Name
 
